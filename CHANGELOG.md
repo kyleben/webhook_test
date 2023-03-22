@@ -2,6 +2,18 @@
 
 Changelog for go-wavefront.
 
+## [1.8.0]
+
+*Add Chart Attributes*
+
+- Added chartAttributes struct and the required nested structs for drilldown link support
+
+## [1.7.0]
+
+*Feature to configure http client timeout*
+
+- Expose http client timeout parameter
+
 ## [1.4.0]
 
 *Add Missing Fields to Dashboards*

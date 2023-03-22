@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
 // Wavefronter is an interface that a Wavefront client must satisfy
@@ -27,6 +28,14 @@ type Config struct {
 
 	// Token is an authentication token that will be passed with all requests
 	Token string
+
+	// Timeout exposes the http client timeout
+	// https://golang.org/src/net/http/client.go
+	Timeout time.Duration
+
+	// TLSClientConfig exposes the underlying TLS configuration. If none specified, the default is used.
+	// https://golang.org/src/net/http/client.go
+	TLSClientConfig *tls.Config
 
 	// SET HTTP Proxy configuration
 	HttpProxy string
@@ -59,24 +68,29 @@ func NewClient(config *Config) (*Client, error) {
 		return nil, err
 	}
 
-	// need to disable http/2 as it doesn't play nicely with nginx
-	// to do so we set TLSNextProto to an empty, non-nil map
-	c := &Client{Config: config,
-		BaseURL: baseURL,
-		httpClient: &http.Client{
-			Transport: &http.Transport{
-				TLSNextProto: map[string]func(authority string, c *tls.Conn) http.RoundTripper{},
-			},
-		},
-		debug: false,
+	t := &http.Transport{
+		TLSClientConfig: config.TLSClientConfig,
+		TLSNextProto:    map[string]func(authority string, c *tls.Conn) http.RoundTripper{},
+	}
+
+	// Add timeout to http client
+	// Timeout of zero means no timeout
+	h := &http.Client{
+		Timeout:   config.Timeout,
+		Transport: t,
+	}
+
+	c := &Client{
+		Config:     config,
+		BaseURL:    baseURL,
+		httpClient: h,
+		debug:      false,
 	}
 
 	// ENABLE HTTP Proxy
 	if config.HttpProxy != "" {
 		proxyUrl, _ := url.Parse(config.HttpProxy)
-		c.httpClient.Transport = &http.Transport{
-			Proxy: http.ProxyURL(proxyUrl),
-		}
+		t.Proxy = http.ProxyURL(proxyUrl)
 	}
 
 	//For testing ONLY
